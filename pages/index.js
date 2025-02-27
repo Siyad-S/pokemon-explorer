@@ -94,7 +94,7 @@ export default function Home({
 
   return (
     <>
-      <AppBar position="static">
+      <AppBar position="sticky">
         <h1 className="text-4xl font-bold text-center mb-2 mt-2">
           Pokemon Explorer
         </h1>
@@ -127,7 +127,7 @@ export default function Home({
               </div>
             </div>
             {totalPages > 1 && (
-              <AppBar position="static" color="default">
+              <AppBar position="sticky" color="default">
                 <div className="flex justify-center mt-4 p-4">
                   <HomePagination
                     searchTerm={searchTerm}
