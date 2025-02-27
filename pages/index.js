@@ -1,114 +1,162 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import Card from "./components/card";
+import HomePagination from "./components/pagination";
+import { AppBar } from "@mui/material";
+import Loader from "./components/loader";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+export default function Home({
+  pokemonList: initialPokemonList,
+  totalPages: initialTotalPages,
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredPokemon, setFilteredPokemon] = useState(initialPokemonList);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPokemon, setCurrentPokemon] = useState(initialPokemonList);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
+  const [loading, setLoading] = useState(false);
+  const itemsPerPage = 12;
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+  useEffect(() => {
+    const fetchFilteredPokemon = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `https://pokeapi.co/api/v2/pokemon?limit=10000&offset=0`
+        );
+        const data = await res.json();
 
-export default function Home() {
+        let filteredResults;
+        if (!isNaN(searchTerm)) {
+          filteredResults = data.results.filter((pokemon) => {
+            const id = pokemon.url.split("/").filter(Boolean).pop();
+            return id === searchTerm;
+          });
+        } else {
+          filteredResults = data.results.filter((pokemon) =>
+            pokemon.name.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+        }
+
+        setFilteredPokemon(filteredResults);
+        setTotalPages(Math.ceil(filteredResults.length / itemsPerPage));
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching Pokémon:", error);
+        setLoading(false);
+      }
+    };
+
+    if (searchTerm) {
+      fetchFilteredPokemon();
+    } else {
+      setFilteredPokemon(initialPokemonList);
+      setTotalPages(initialTotalPages);
+    }
+    setCurrentPage(1);
+  }, [searchTerm, initialPokemonList, initialTotalPages]);
+
+  useEffect(() => {
+    const fetchPokemon = async () => {
+      setLoading(true);
+      try {
+        const offset = (currentPage - 1) * itemsPerPage;
+        const res = await fetch(
+          `https://pokeapi.co/api/v2/pokemon?limit=${itemsPerPage}&offset=${offset}`
+        );
+        const data = await res.json();
+
+        setCurrentPokemon(data.results);
+        setTotalPages(Math.ceil(data.count / itemsPerPage));
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching Pokémon:", error);
+        setLoading(false);
+      }
+    };
+
+    if (!searchTerm) {
+      fetchPokemon();
+    } else {
+      const indexOfLastItem = currentPage * itemsPerPage;
+      const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+      const paginatedFilteredPokemon = filteredPokemon.slice(
+        indexOfFirstItem,
+        indexOfLastItem
+      );
+      setCurrentPokemon(paginatedFilteredPokemon);
+    }
+  }, [currentPage, searchTerm, filteredPokemon]);
+
+  const handlePageChange = (event, value) => {
+    setCurrentPage(value);
+  };
+
   return (
-    <div
-      className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]`}
-    >
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              pages/index.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <>
+      <AppBar position="static">
+        <h1 className="text-4xl font-bold text-center mb-2 mt-2">
+          Pokemon Explorer
+        </h1>
+        <div className="flex justify-center">
+          <input
+            type="text"
+            placeholder="Search Pokemon..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full max-w-md p-3 mb-2 border rounded-lg shadow-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </AppBar>
+      <div className="flex flex-col min-h-screen relative">
+        {loading && <Loader />}
+        {!loading && (
+          <>
+            <div className="flex-grow overflow-y-auto bg-gray-100 p-6 flex flex-col items-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-6xl w-full px-4">
+                {currentPokemon.map((pokemon, index) => {
+                  const id = pokemon.url.split("/").filter(Boolean).pop();
+                  return (
+                    <Link href={`/pokemon/${id}`} key={index}>
+                      <div className="flex justify-center">
+                        <Card id={id} pokemon={pokemon} loading={loading} />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+            {totalPages > 1 && (
+              <AppBar position="static" color="default">
+                <div className="flex justify-center mt-4 p-4">
+                  <HomePagination
+                    searchTerm={searchTerm}
+                    totalPages={totalPages}
+                    itemsPerPage={itemsPerPage}
+                    filteredPokemon={filteredPokemon}
+                    currentPage={currentPage}
+                    handlePageChange={handlePageChange}
+                  />
+                </div>
+              </AppBar>
+            )}
+          </>
+        )}
+      </div>
+    </>
   );
+}
+
+export async function getStaticProps() {
+  const res = await fetch(
+    "https://pokeapi.co/api/v2/pokemon?limit=12&offset=0"
+  );
+  const data = await res.json();
+
+  return {
+    props: {
+      pokemonList: data.results,
+      totalPages: Math.ceil(data.count / 16),
+    },
+  };
 }
